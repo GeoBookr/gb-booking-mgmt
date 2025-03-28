@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:v23.1.11
+    container_name: cockroachdb
+    command: start-single-node --insecure
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - cockroach-data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  journey-booking-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: journey-booking-api
+    depends_on:
+      - cockroachdb
+      - rabbitmq
+    ports:
+      - "7444:7444"
+    environment:
+      DATABASE_URL: cockroachdb+psycopg://root@cockroachdb:26257/journey_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq/
+      JWT_SECRET: mocksecret
+      DEBUG: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7444/journey/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  cockroach-data: 

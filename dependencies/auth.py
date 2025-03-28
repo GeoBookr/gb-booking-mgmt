@@ -1,9 +1,10 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt
+from config import settings
 
-SECRET = "mocksecret"
-ALGORITHM = "HS256"
+SECRET = settings.JWT_SECRET
+ALGORITHM = settings.JWT_ALGORITHM
 auth_scheme = HTTPBearer()
 
 

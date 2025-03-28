@@ -14,3 +14,15 @@ stop:
 
 logs:
 	docker logs -f $(SERVICE_NAME)
+
+compose-up:
+	docker-compose up -d --build
+
+compose-down:
+	docker-compose down
+
+compose-logs:
+	docker-compose logs -f
+
+rebuild: compose-down
+	docker-compose up -d --build
