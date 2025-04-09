@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Enum, Float
+from sqlalchemy import Column, String, DateTime, Enum, Float, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 import uuid
@@ -29,3 +29,18 @@ class Journey(Base):
     scheduled_time = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     status = Column(Enum(JourneyStatus), default=JourneyStatus.pending)
+
+
+class RegionType(enum.Enum):
+    city = "city"
+    country = "country"
+
+
+class Slot(Base):
+    __tablename__ = "slots"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    region_type = Column(Enum(RegionType), nullable=False)
+    region_identifier = Column(String, nullable=False, unique=True)
+    slots = Column(Integer, nullable=False)
+    continent = Column(String, nullable=True)
