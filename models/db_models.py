@@ -43,4 +43,5 @@ class Slot(Base):
     region_type = Column(Enum(RegionType), nullable=False)
     region_identifier = Column(String, nullable=False, unique=True)
     slots = Column(Integer, nullable=False)
+    reserved = Column(Integer, nullable=False, default=0)
     continent = Column(String, nullable=True)
