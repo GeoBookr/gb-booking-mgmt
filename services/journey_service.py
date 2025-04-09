@@ -2,6 +2,7 @@ from uuid import uuid4, UUID
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from models.journey_models import JourneyRequest, JourneyStatusResponse, JourneyDetailsResponse
+from fastapi.concurrency import run_in_threadpool
 from models.db_models import Journey
 from sqlalchemy.orm import Session
 from sqlalchemy.future import select
@@ -35,8 +36,8 @@ async def create_journey(request: JourneyRequest, user, db: Session):
         scheduled_time=request.scheduled_time,
     )
     db.add(new_journey)
-    db.commit()
-    db.refresh(new_journey)
+    await run_in_threadpool(db.commit)
+    await run_in_threadpool(db.refresh, new_journey)
     journey = transform_journey_to_response(new_journey)
     if not journey:
         raise HTTPException(status_code=404, detail="Journey not found")
@@ -59,9 +60,8 @@ async def create_journey(request: JourneyRequest, user, db: Session):
 
 
 async def cancel_journey_by_id(journey_id: UUID, user, db: Session):
-    record = db.execute(select(Journey).where(
-        Journey.journey_id == journey_id))
-    journey = record.scalar_one_or_none()
+    result = await run_in_threadpool(db.execute, select(Journey).where(Journey.journey_id == journey_id))
+    journey = result.scalar_one_or_none()
 
     if not journey:
         raise HTTPException(status_code=404, detail="Journey not found")
@@ -69,7 +69,7 @@ async def cancel_journey_by_id(journey_id: UUID, user, db: Session):
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     journey.status = "canceled"
-    await db.commit()
+    await run_in_threadpool(db.commit)
     event = JourneyCanceledEvent(
         journey_id=journey_id, user_id=user["user_id"], timestamp=datetime.now(timezone.utc))
     await publisher.publish("journey.canceled.v1", event.model_dump())
@@ -77,9 +77,8 @@ async def cancel_journey_by_id(journey_id: UUID, user, db: Session):
     return JourneyStatusResponse(journey_id=journey_id, status="canceled")
 
 
-def get_journey_by_id(journey_id: UUID, user, db: Session):
-    result = db.execute(select(Journey).where(
-        Journey.journey_id == journey_id))
+async def get_journey_by_id(journey_id: UUID, user, db: Session):
+    result = await run_in_threadpool(db.execute, select(Journey).where(Journey.journey_id == journey_id))
     record = result.scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="Journey not found")
@@ -89,9 +88,8 @@ def get_journey_by_id(journey_id: UUID, user, db: Session):
     return transform_journey_to_response(record)
 
 
-def get_journey_status(journey_id: UUID, user, db: Session):
-    result = db.execute(select(Journey).where(
-        Journey.journey_id == journey_id))
+async def get_journey_status(journey_id: UUID, user, db: Session):
+    result = await run_in_threadpool(db.execute, select(Journey).where(Journey.journey_id == journey_id))
     record = result.scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="Journey not found")
@@ -101,9 +99,8 @@ def get_journey_status(journey_id: UUID, user, db: Session):
     return JourneyStatusResponse(journey_id=journey_id, status=record.status)
 
 
-def get_all_journeys_by_user(user, db: Session):
-    result = db.execute(select(Journey).where(
-        Journey.user_id == user["user_id"]))
+async def get_all_journeys_by_user(user, db: Session):
+    result = await run_in_threadpool(db.execute, select(Journey).where(Journey.user_id == user["user_id"]))
     records = result.scalars().all()
     if not records:
         raise HTTPException(

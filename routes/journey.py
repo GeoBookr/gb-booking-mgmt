@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from uuid import UUID
+from fastapi.concurrency import run_in_threadpool
 from dependencies.auth import get_current_user
 from dependencies.db import get_db
 from sqlalchemy.orm import Session
@@ -12,8 +13,9 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[JourneyDetailsResponse])
-def get_all_journeys(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    return get_all_journeys_by_user(user, db)
+async def get_all_journeys(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    response = await run_in_threadpool(get_all_journeys_by_user, user, db)
+    return response
 
 
 @router.post("/", response_model=JourneyStatusResponse)
@@ -27,10 +29,12 @@ async def cancel_journey(journey_id: UUID, user=Depends(get_current_user), db: S
 
 
 @router.get("/{journey_id}", response_model=JourneyDetailsResponse)
-def get_journey(journey_id: UUID, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    return get_journey_by_id(journey_id, user, db)
+async def get_journey(journey_id: UUID, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    response = await run_in_threadpool(get_journey_by_id, journey_id, user, db)
+    return response
 
 
 @router.get("/{journey_id}/status", response_model=JourneyStatusResponse)
-def get_status(journey_id: UUID, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    return get_journey_status(journey_id, user, db)
+async def get_status(journey_id: UUID, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    response = await run_in_threadpool(get_journey_status, journey_id, user, db)
+    return response
