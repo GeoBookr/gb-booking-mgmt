@@ -3,6 +3,9 @@ import asyncio
 from tenacity import retry, wait_exponential, stop_after_attempt
 import json
 from config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class EventPublisher:
@@ -22,8 +25,8 @@ class EventPublisher:
     async def publish(self, routing_key: str, message: dict):
         if not self.channel:
             await self.connect()
-        print(f"[PUBLISHING] Routing key: {routing_key}")
-        print(f"[Payload] {message}")
+        logger.info(f"[Publishing] Routing key: {routing_key}")
+        logger.info(f"[Payload] {message}")
         exchange = await self.channel.get_exchange(self.exchange_name)
         body = message.encode() if isinstance(
             message, str) else json.dumps(message).encode()
