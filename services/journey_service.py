@@ -1,13 +1,12 @@
 from uuid import uuid4, UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException
 from models.journey_models import JourneyRequest, JourneyStatusResponse, JourneyDetailsResponse
 from models.db_models import Journey
 from sqlalchemy.orm import Session
 from sqlalchemy.future import select
-from sqlalchemy import update
-from sqlalchemy.exc import NoResultFound
 from services.rabbitmq_publisher import publisher
+from models.events import JourneyBookedEvent, JourneyCanceledEvent
 
 
 def transform_journey_to_response(journey):
@@ -43,7 +42,18 @@ async def create_journey(request: JourneyRequest, user, db: Session):
         raise HTTPException(status_code=404, detail="Journey not found")
     if journey.user_id != user["user_id"]:
         raise HTTPException(status_code=403, detail="Unauthorized")
-    await publisher.publish("journey.booked", journey.model_dump_json())
+
+    event = JourneyBookedEvent(
+        journey_id=new_journey.journey_id,
+        user_id=new_journey.user_id,
+        route=[],
+        origin_lat=new_journey.origin_lat,
+        origin_lon=new_journey.origin_lon,
+        destination_lat=new_journey.destination_lat,
+        destination_lon=new_journey.destination_lon,
+        timestamp=datetime.now(timezone.utc)
+    )
+    await publisher.publish("journey.booked.v1", event.model_dump())
 
     return JourneyStatusResponse(journey_id=new_journey.journey_id, status=new_journey.status)
 
@@ -60,8 +70,9 @@ async def cancel_journey_by_id(journey_id: UUID, user, db: Session):
 
     journey.status = "canceled"
     await db.commit()
-
-    await publisher.publish("journey.canceled", {"journey_id": str(journey_id), "user_id": user["user_id"], "status": "canceled"})
+    event = JourneyCanceledEvent(
+        journey_id=journey_id, user_id=user["user_id"], timestamp=datetime.now(timezone.utc))
+    await publisher.publish("journey.canceled.v1", event.model_dump())
 
     return JourneyStatusResponse(journey_id=journey_id, status="canceled")
 
