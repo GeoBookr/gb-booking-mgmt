@@ -22,8 +22,11 @@ class EventPublisher:
     async def publish(self, routing_key: str, message: dict):
         if not self.channel:
             await self.connect()
+        print(f"[PUBLISHING] Routing key: {routing_key}")
+        print(f"[Payload] {message}")
         exchange = await self.channel.get_exchange(self.exchange_name)
-        body = json.dumps(message).encode()
+        body = message.encode() if isinstance(
+            message, str) else json.dumps(message).encode()
         await exchange.publish(
             aio_pika.Message(body=body),
             routing_key=routing_key

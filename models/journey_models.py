@@ -5,8 +5,10 @@ from uuid import UUID
 
 
 class JourneyRequest(BaseModel):
-    origin: str
-    destination: str
+    origin_lat: float
+    origin_lon: float
+    destination_lat: float
+    destination_lon: float
     scheduled_time: datetime
     vehicle_type: Literal["car", "bus", "truck", "motorcycle"]
 
@@ -18,8 +20,10 @@ class JourneyStatusResponse(BaseModel):
 
 class JourneyDetailsResponse(JourneyStatusResponse):
     user_id: str
-    origin: str
-    destination: str
+    origin_lat: float
+    origin_lon: float
+    destination_lat: float
+    destination_lon: float
     vehicle_type: str
     scheduled_time: datetime
     created_at: datetime

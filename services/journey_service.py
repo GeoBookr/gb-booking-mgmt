@@ -14,8 +14,10 @@ def transform_journey_to_response(journey):
     return JourneyDetailsResponse(
         journey_id=journey.journey_id,
         user_id=journey.user_id,
-        origin=journey.origin,
-        destination=journey.destination,
+        origin_lat=journey.origin_lat,
+        origin_lon=journey.origin_lon,
+        destination_lat=journey.destination_lat,
+        destination_lon=journey.destination_lon,
         vehicle_type=journey.vehicle_type,
         scheduled_time=journey.scheduled_time,
         created_at=journey.created_at,
@@ -26,24 +28,21 @@ def transform_journey_to_response(journey):
 async def create_journey(request: JourneyRequest, user, db: Session):
     new_journey = Journey(
         user_id=user["user_id"],
-        origin=request.origin,
-        destination=request.destination,
+        origin_lat=request.origin_lat,
+        origin_lon=request.origin_lon,
+        destination_lat=request.destination_lat,
+        destination_lon=request.destination_lon,
         vehicle_type=request.vehicle_type,
         scheduled_time=request.scheduled_time,
     )
     db.add(new_journey)
     db.commit()
     db.refresh(new_journey)
-    journey = JourneyDetailsResponse(
-        journey_id=new_journey.journey_id,
-        user_id=new_journey.user_id,
-        origin=new_journey.origin,
-        destination=new_journey.destination,
-        vehicle_type=new_journey.vehicle_type,
-        scheduled_time=new_journey.scheduled_time,
-        created_at=new_journey.created_at,
-        status=new_journey.status
-    )
+    journey = transform_journey_to_response(new_journey)
+    if not journey:
+        raise HTTPException(status_code=404, detail="Journey not found")
+    if journey.user_id != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
     await publisher.publish("journey.booked", journey.model_dump_json())
 
     return JourneyStatusResponse(journey_id=new_journey.journey_id, status=new_journey.status)
