@@ -35,7 +35,7 @@ async def create_journey(request: JourneyRequest, user, db: Session):
         vehicle_type=request.vehicle_type,
         scheduled_time=request.scheduled_time,
     )
-    db.add(new_journey)
+    await run_in_threadpool(db.add, new_journey)
     await run_in_threadpool(db.commit)
     await run_in_threadpool(db.refresh, new_journey)
     journey = transform_journey_to_response(new_journey)
