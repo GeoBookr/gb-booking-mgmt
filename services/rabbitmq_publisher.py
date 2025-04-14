@@ -32,16 +32,17 @@ class EventPublisher:
             raise
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(5))
-    async def publish(self, routing_key: str, message: dict):
+    async def publish(self, message: dict):
         if not self.exchange:
             await self.connect()
         try:
-            logger.info(f"Publishing event with routing key: {routing_key}")
+            logger.info(
+                f"Publishing event with routing key: {message['event_type']}")
             logger.info(f"Payload: {message}")
             body = json.dumps(message, default=str).encode()
             await self.exchange.publish(
                 aio_pika.Message(body=body),
-                routing_key=routing_key
+                routing_key=message['event_type']
             )
             logger.info("Event published successfully.")
         except Exception as e:

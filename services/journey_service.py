@@ -26,6 +26,8 @@ def transform_journey_to_response(journey):
 
 
 async def create_journey(request: JourneyRequest, user, db: Session):
+    rounded_time = request.scheduled_time.replace(
+        minute=0, second=0, microsecond=0)
     new_journey = Journey(
         user_id=user["user_id"],
         origin_lat=request.origin_lat,
@@ -33,7 +35,7 @@ async def create_journey(request: JourneyRequest, user, db: Session):
         destination_lat=request.destination_lat,
         destination_lon=request.destination_lon,
         vehicle_type=request.vehicle_type,
-        scheduled_time=request.scheduled_time,
+        scheduled_time=rounded_time,
     )
     await run_in_threadpool(db.add, new_journey)
     await run_in_threadpool(db.commit)
@@ -52,9 +54,10 @@ async def create_journey(request: JourneyRequest, user, db: Session):
         origin_lon=new_journey.origin_lon,
         destination_lat=new_journey.destination_lat,
         destination_lon=new_journey.destination_lon,
+        scheduled_time=new_journey.scheduled_time,
         timestamp=datetime.now(timezone.utc)
     )
-    await publisher.publish("journey.booked.v1", event.model_dump())
+    await publisher.publish(event.model_dump())
 
     return JourneyStatusResponse(journey_id=new_journey.journey_id, status=new_journey.status)
 
@@ -67,12 +70,16 @@ async def cancel_journey_by_id(journey_id: UUID, user, db: Session):
         raise HTTPException(status_code=404, detail="Journey not found")
     if journey.user_id != user["user_id"]:
         raise HTTPException(status_code=403, detail="Unauthorized")
-
-    journey.status = "canceled"
+    if journey.status == "canceled":
+        raise HTTPException(
+            status_code=404, detail="Journey is already canceled")
+    if journey.status == "rejected":
+        raise HTTPException(
+            status_code=404, detail="Journey is rejected, so can not be canceled")
     await run_in_threadpool(db.commit)
     event = JourneyCanceledEvent(
-        journey_id=journey_id, user_id=user["user_id"], timestamp=datetime.now(timezone.utc))
-    await publisher.publish("journey.canceled.v1", event.model_dump())
+        journey_id=journey_id, user_id=user["user_id"], scheduled_time=journey.scheduled_time, timestamp=datetime.now(timezone.utc))
+    await publisher.publish(event.model_dump())
 
     return JourneyStatusResponse(journey_id=journey_id, status="canceled")
 
