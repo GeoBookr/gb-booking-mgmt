@@ -7,7 +7,7 @@ python -c "
 import socket, time
 while True:
     try:
-        socket.create_connection(('cockroachdb', 26257), timeout=2)
+        socket.create_connection(('host.docker.internal', ${GB_COCKROACH_PORT}), timeout=2)
         print('CockroachDB is up!')
         break
     except:

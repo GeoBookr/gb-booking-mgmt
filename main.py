@@ -7,7 +7,7 @@ from logging_config import configure_logging
 
 configure_logging()
 
-app = FastAPI(root_path="/journey")
+app = FastAPI(root_path="/api/v1/journey")
 
 
 @app.on_event("startup")
